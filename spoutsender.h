@@ -20,7 +20,7 @@ public:
 
 #ifdef WIN32
 #if defined(USE_SPOUT_DX) || defined(USE_SPOUT_DX12) || defined(USE_SPOUT_DX9) || defined(USE_SPOUT_GL)
-    bool init(ID3D11Device* device, HWND hwnd,
+    bool init(ID3D11Device* device,
               int width,
               int height,
               const std::string& name);
@@ -33,7 +33,6 @@ private:
 
     spoutDX sender = spoutDX();
 
-    HWND hwnd = nullptr;
     ID3D11Device* device = nullptr;
 
     int width = 0;

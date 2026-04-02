@@ -26,22 +26,16 @@ SpoutSenderWrapper::~SpoutSenderWrapper()
 
 #if defined(WIN32) && (defined(USE_SPOUT_DX) || defined(USE_SPOUT_DX12) || defined(USE_SPOUT_DX9) || defined(USE_SPOUT_GL))
 
-bool SpoutSenderWrapper::init(ID3D11Device* device, HWND hwnd,
+bool SpoutSenderWrapper::init(ID3D11Device* device,
                               int w,
                               int h,
                               const std::string& name)
 {
-    if (!hwnd) {
-        std::cerr << "SPOUT: Bad HWND.\n";
-        return false;
-    }
 
-    this->hwnd = hwnd;
     width = w;
     height = h;
 
     sender.OpenDirectX11(device);
-    sender.SelectSender(this->hwnd);
     sender.SetSenderName("RCubiQWSender");
 
     initialized = true;
@@ -50,7 +44,7 @@ bool SpoutSenderWrapper::init(ID3D11Device* device, HWND hwnd,
 
 void SpoutSenderWrapper::send(ID3D11Texture2D* texture)
 {
-    if (!initialized || !texture || !hwnd) {
+    if (!initialized || !texture) {
         return;
     }
 

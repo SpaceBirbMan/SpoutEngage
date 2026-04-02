@@ -9,36 +9,34 @@ add_library(SpoutEngage SHARED
   SpoutEngage_global.h
   spoutengage.cpp
   spoutengage.h
-  # spoutsender.h spoutsender.cpp
+  spoutsender.h spoutsender.cpp
 )
-# Дохнет от Spout
 
-# set(SPOUT_DIR "${CMAKE_SOURCE_DIR}/../spout2")
-# set(SPOUT_LIB_DIR "${SPOUT_DIR}/INSTALL/lib")
-# set(SPOUT_BIN_DIR "${SPOUT_DIR}/INSTALL/bin")
+# Compile spout2 from source (avoids DLL ABI mismatch / buffer overruns in MinGW Plugin loading)
+if (MINGW AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    # GCC/Clang требуют явного флага для интринсиков SSE, в отличие от MSVC.
+    add_compile_options(-mssse3 -msse4.1)
+endif()
 
-# target_include_directories(SpoutEngage PRIVATE
-#     "${SPOUT_DIR}/INSTALL/include"
-# )
+set(SPOUT_BUILD_SPOUTDX ON)
+set(SPOUT_BUILD_LIBRARY OFF)
+set(SKIP_INSTALL_ALL ON)
+add_subdirectory("${CMAKE_SOURCE_DIR}/../spout2" spoutbuild)
 
-# set(SPOUT_LIBS
-#     "${SPOUT_LIB_DIR}/libSpoutDX.dll.a"
-#     "${SPOUT_LIB_DIR}/libSpoutDX12.dll.a"
-#     "${SPOUT_LIB_DIR}/libSpoutDX9.dll.a"
-#     "${SPOUT_LIB_DIR}/libSpout.dll.a"
-#     "${SPOUT_LIB_DIR}/libSpoutLibrary.dll.a"
-# )
-# target_compile_definitions(SpoutEngage PRIVATE
-#     USE_SPOUT_DX
-#     USE_SPOUT_DX12
-#     USE_SPOUT_DX9
-#     USE_SPOUT_GL
-#     USE_SPOUT_LIBRARY
-# )
+target_include_directories(SpoutEngage PRIVATE
+    "${CMAKE_SOURCE_DIR}/../spout2/SPOUTSDK"
+    "${CMAKE_SOURCE_DIR}/../spout2/SPOUTSDK/SpoutDirectX"
+)
 
-# target_link_libraries(${PROJECT_NAME} PRIVATE ${SPOUT_LIBS})
+# Use only DX (DX11) and GL, which are what SpoutSender actually uses in your code
+target_compile_definitions(SpoutEngage PRIVATE
+    USE_SPOUT_DX
+    USE_SPOUT_GL
+    SPOUTENGAGE_LIBRARY
+)
 
-target_compile_definitions(SpoutEngage PRIVATE SPOUTENGAGE_LIBRARY)
+# Link statically to avoid needing DLLs at runtime and side-effect crashes
+target_link_libraries(SpoutEngage PRIVATE SpoutDX_static Spout_static d3d11)
 
 set_target_properties(SpoutEngage PROPERTIES SUFFIX ".ofp")
 
