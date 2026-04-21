@@ -1,6 +1,8 @@
 #include "spoutengage.h"
 #include "spoutsender.h"
 #include <iostream>
+#include <atomic>
+#include <mutex>
 #include <d3d11.h>
 
 class SpEnClass : public IGenPlugin {
@@ -24,7 +26,12 @@ private:
 
     std::string i_name = "SpoutEngage";
 
+    std::shared_ptr<std::atomic<bool>> _alive = std::make_shared<std::atomic<bool>>(true);
+    std::shared_ptr<std::mutex> _lifetimeMutex = std::make_shared<std::mutex>();
+    int _pipeline_index = -1;  // index of our slot in render_pipeline; -1 = not registered
+
 public:
+
 
     SpEnClass(IEventManager* eventManager, IDataBus* dataBus) {
         this->data_bus = dataBus;
@@ -40,6 +47,18 @@ public:
     }
 
     ~SpEnClass() override {
+    }
+
+    void shutdown() override {
+        _alive->store(false, std::memory_order_release);
+        // Wait for any in-progress render callback to finish
+        std::lock_guard<std::mutex> lock(*_lifetimeMutex);
+        // Null out our slot in the pipeline so the timer never calls DLL code again.
+        // std::function::operator=(nullptr_t) is standard-library code — safe after FreeLibrary.
+        if (render_pipeline && _pipeline_index >= 0
+                && _pipeline_index < static_cast<int>(render_pipeline->size())) {
+            (*render_pipeline)[_pipeline_index] = nullptr;
+        }
     }
 
     void setDataBus(IDataBus* db) override {
@@ -66,7 +85,9 @@ public:
         } catch (...) {
             std::cerr << "SpoutEngage: Error obtaining data from bus.\n";
         }
-        this->executable_function = [this]() {
+        this->executable_function = [this, alive = _alive, mtx = _lifetimeMutex]() {
+            std::unique_lock<std::mutex> lock(*mtx, std::try_to_lock);
+            if (!lock.owns_lock() || !alive->load(std::memory_order_acquire)) return;
             if (!this->has_started) {
                 this->start();
                 this->has_started = true;
@@ -74,6 +95,7 @@ public:
                 this->update();
             }
         };
+        _pipeline_index = static_cast<int>(render_pipeline->size());
         render_pipeline->emplace_back(executable_function);
     }
 
